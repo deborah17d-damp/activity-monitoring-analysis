@@ -1,0 +1,269 @@
+---
+title: "Activity Monitoring Data Analysis"
+author: "DEBORAH DAMPTEY"
+date: "2026-09-30"
+output: html_document
+---
+
+# Introduction
+
+Activity monitoring devices allow individuals to collect detailed information about their physical activity throughout the day. These devices record movement at frequent time intervals and can provide useful information for examining daily activity patterns and behavior over time.
+
+This analysis uses activity monitoring data collected from an anonymous individual during October and November 2012. The monitoring device recorded the number of steps taken during consecutive 5-minute intervals throughout each day. The dataset contains 17,568 observations and includes information on the number of steps taken, the date of observation, and the corresponding 5-minute interval.
+
+The purpose of this analysis is to examine the individual's daily activity patterns. Specifically, the analysis will investigate the total number of steps taken per day, the average activity pattern throughout the day, the effect of missing observations, and differences in activity patterns between weekdays and weekends.
+
+
+# Loading and Preprocessing the Data
+
+The activity monitoring dataset was first loaded into R. The dataset contains the number of steps recorded during 5-minute intervals throughout October and November 2012.
+
+```{r load-data, echo=TRUE}
+# Load the activity monitoring dataset
+library(readr)
+activity <- read_csv("~/activity.csv")
+
+# Display the first few observations
+head(activity)
+```
+
+```{r inspect-data, echo=TRUE}
+# Examine the structure of the dataset
+str(activity)
+
+# Check the number of rows and columns
+dim(activity)
+
+# Display a summary of the variables
+summary(activity)
+```
+
+```{r preprocess-data, echo=TRUE}
+# Convert the date variable to Date format
+activity$date <- as.Date(activity$date, format = "%Y-%m-%d")
+
+# Check the structure after preprocessing
+str(activity)
+```
+
+The dataset contains 17,568 observations and three variables: `steps`, `date`, and `interval`. The `steps` variable represents the number of steps taken during each 5-minute interval, while the `interval` variable identifies the corresponding time interval during the day. The `date` variable was converted to R's Date format to make it suitable for subsequent analyses involving dates, weekdays, and weekends.
+
+The dataset contains missing observations in the `steps` variable. These missing values are retained at this stage because the first part of the analysis requires them to be ignored rather than replaced. Missing values will be examined and imputed later in the analysis.
+
+# What is the Mean Total Number of Steps Taken per Day?
+
+For this section, missing values in the `steps` variable are ignored. The total
+number of steps taken each day was calculated by summing the recorded steps
+across all 5-minute intervals for each date.
+
+```{r daily-total-steps, echo=TRUE}
+# Calculate the total number of steps taken each day
+daily_steps <- aggregate(steps ~ date,
+                         data = activity,
+                         FUN = sum,
+                         na.rm = TRUE)
+
+# Display the first few daily totals
+head(daily_steps)
+```
+
+
+```{r histogram-daily-steps, echo=TRUE}
+# Create a histogram of total steps taken per day
+hist(daily_steps$steps,
+     main = "Total Number of Steps Taken per Day",
+     xlab = "Total Steps per Day",
+     ylab = "Frequency")
+```
+
+```{r daily-summary, echo=TRUE}
+# Calculate the mean total number of steps taken per day
+mean_daily_steps <- mean(daily_steps$steps)
+
+# Calculate the median total number of steps taken per day
+median_daily_steps <- median(daily_steps$steps)
+
+mean_daily_steps
+median_daily_steps
+```
+
+The mean total number of steps taken per day was 10,766.19 steps, while the median was 10,765 steps.
+
+The mean and median are very close, suggesting that the distribution of total daily steps is fairly balanced around its center. The histogram provides a visual summary of how the total number of steps varied from day to day during the observation period.
+
+# What is the Average Daily Activity Pattern?
+
+To examine the average daily activity pattern, the mean number of steps was
+calculated for each 5-minute interval across all days in the dataset.
+
+```{r average-activity-pattern, echo=TRUE}
+# Calculate the average number of steps for each 5-minute interval
+interval_average <- aggregate(steps ~ interval,
+                              data = activity,
+                              FUN = mean,
+                              na.rm = TRUE)
+
+# Display the first few interval averages
+head(interval_average)
+```
+
+```{r activity-pattern-plot, echo=TRUE}
+# Plot the average number of steps for each 5-minute interval
+plot(interval_average$interval,
+     interval_average$steps,
+     type = "l",
+     main = "Average Daily Activity Pattern",
+     xlab = "5-Minute Interval",
+     ylab = "Average Number of Steps")
+```
+
+```{r max-activity-interval, echo=TRUE}
+# Identify the 5-minute interval with the maximum average number of steps
+max_interval <- interval_average[
+  which.max(interval_average$steps), ]
+
+max_interval
+```
+
+
+The average daily activity pattern was calculated by averaging the number of steps for each 5-minute interval across all days in the dataset.
+
+The 5-minute interval with the highest average number of steps was interval 835, with an average of approximately 206.17 steps. This indicates that the individual's highest average level of activity occurred around this interval during the day.
+
+# Imputing Missing Values
+
+Missing observations are present in the `steps` variable. Before replacing
+them, the total number of missing values was calculated.
+
+```{r missing-values, echo=TRUE}
+# Count the total number of missing values in the steps variable
+missing_values <- sum(is.na(activity$steps))
+
+missing_values
+```
+
+To handle the missing observations, each missing value in the `steps` variable was replaced with the average number of steps for the corresponding 5-minute interval across all available days. This approach was chosen because activity levels differ throughout the day, and using the interval-specific mean preserves the observed daily activity pattern.
+
+```{r impute-missing-values, echo=TRUE}
+# Create a copy of the original dataset
+activity_imputed <- activity
+
+# Replace missing step values with the mean for the corresponding interval
+activity_imputed$steps[is.na(activity_imputed$steps)] <-
+  interval_average$steps[
+    match(
+      activity_imputed$interval[is.na(activity_imputed$steps)],
+      interval_average$interval
+    )
+  ]
+
+# Check that all missing values have been replaced
+sum(is.na(activity_imputed$steps))
+```
+A total of 2,304 missing values were identified in the `steps` variable. To address these missing observations, each missing value was replaced with the average number of steps for the corresponding 5-minute interval across all available days.
+
+After applying this imputation strategy, there were no remaining missing values in the completed dataset. This approach preserves the general daily activity pattern because each missing observation is replaced using information from the same time interval.
+
+# Total Daily Steps After Imputing Missing Values
+
+After replacing the missing observations, the total number of steps taken each day was recalculated using the completed dataset.
+
+```{r imputed-daily-steps, echo=TRUE}
+# Calculate total steps per day after imputation
+daily_steps_imputed <- aggregate(steps ~ date,
+                                 data = activity_imputed,
+                                 FUN = sum)
+
+# Display the first few daily totals
+head(daily_steps_imputed)
+```
+
+```{r imputed-histogram, echo=TRUE}
+# Create a histogram of total daily steps after imputation
+hist(daily_steps_imputed$steps,
+     main = "Total Number of Steps per Day After Imputation",
+     xlab = "Total Steps per Day",
+     ylab = "Frequency")
+```
+
+```{r imputed-summary, echo=TRUE}
+# Calculate the mean after imputation
+mean_daily_steps_imputed <- mean(daily_steps_imputed$steps)
+
+# Calculate the median after imputation
+median_daily_steps_imputed <- median(daily_steps_imputed$steps)
+
+mean_daily_steps_imputed
+median_daily_steps_imputed
+```
+
+After imputing the missing observations, the mean total number of steps taken per day was 10,766.19 steps, while the median was also 10,766.19 steps.
+
+The mean remained unchanged compared with the estimate obtained before imputation. The median increased slightly from 10,765 steps to 10,766.19 steps. This indicates that the chosen imputation method had very little effect on the overall estimate of daily activity. Because the missing values were replaced using the average number of steps for the corresponding 5-minute intervals, the overall average activity level was largely preserved.
+
+# Are There Differences in Activity Patterns Between Weekdays and Weekends?
+
+To compare activity patterns between weekdays and weekends, each date was classified as either a weekday or weekend using the `weekdays()` function.
+
+```{r weekday-weekend-variable, echo=TRUE}
+# Identify the day of the week for each observation
+activity_imputed$day <- weekdays(activity_imputed$date)
+
+# Create a factor variable for weekday and weekend
+activity_imputed$day_type <- ifelse(
+  activity_imputed$day %in% c("Saturday", "Sunday"),
+  "weekend",
+  "weekday"
+)
+
+# Convert the new variable to a factor
+activity_imputed$day_type <- factor(
+  activity_imputed$day_type,
+  levels = c("weekday", "weekend")
+)
+
+# Check the new variable
+table(activity_imputed$day_type)
+```
+
+```{r weekday-weekend-average, echo=TRUE}
+# Calculate average steps by interval and day type
+weekday_weekend_avg <- aggregate(
+  steps ~ interval + day_type,
+  data = activity_imputed,
+  FUN = mean
+)
+
+# Display the first few observations
+head(weekday_weekend_avg)
+```
+
+
+```{r weekday-weekend-panel-plot, echo=TRUE}
+# Load the lattice package
+library(lattice)
+
+# Create a panel plot comparing weekdays and weekends
+xyplot(
+  steps ~ interval | day_type,
+  data = weekday_weekend_avg,
+  type = "l",
+  layout = c(1, 2),
+  xlab = "5-Minute Interval",
+  ylab = "Average Number of Steps",
+  main = "Average Activity Patterns: Weekdays vs Weekends"
+)
+```
+
+
+The panel plot shows clear differences between weekday and weekend activity patterns. On weekdays, activity increases sharply during the morning, with a pronounced peak occurring around the 800 to 900 interval range. After this peak, activity declines and remains at more moderate levels throughout the rest of the day, with several smaller increases later in the afternoon and evening.
+
+In contrast, weekend activity is more evenly distributed across the day. Rather than showing one dominant morning peak, the weekend pattern contains several moderate peaks extending from the morning into the afternoon and evening. This suggests that the individual's weekday activity is more concentrated around a specific morning period, while weekend activity is spread more broadly across the day.
+
+The dataset contains 12,960 weekday observations and 4,608 weekend observations.
+
+
+# Conclusion
+This analysis examined daily physical activity patterns using step-count data recorded at 5-minute intervals during October and November 2012. The mean total number of steps taken per day was approximately 10,766, and the median was 10,765 before missing values were imputed.
+The average daily activity pattern showed that interval 835 had the highest average number of steps, with about 206 steps. A total of 2,304 missing step observations were identified and replaced using the mean number of steps for the corresponding 5-minute interval. After imputation, the mean daily total remained essentially unchanged, while the median increased only slightly, indicating that the imputation had little effect on the overall daily activity estimates.
+The comparison between weekdays and weekends also showed noticeable differences in activity patterns. Weekday activity was characterized by a sharp morning peak, while weekend activity was more spread throughout the day with several moderate peaks. Overall, the results suggest that the individual's activity level and timing varied across the day and differed between weekdays and weekends.
